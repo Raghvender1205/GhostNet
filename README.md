@@ -45,3 +45,16 @@ Factor $\alpha$ is called a `Width Multiplier` as it can change the width of the
 2. Computational cost 
 
 Usually $\alpha$ leads to lower latency and lower performance.
+
+For more information refer to these links 
+1. Official Implementation:- https://github.com/huawei-noah/Efficient-AI-Backbones
+2. Original Arxiv Paper: https://arxiv.org/pdf/1911.11907.pdf
+3. Paperspace Blog:- https://blog.paperspace.com/ghostnet-cvpr-2020/
+4. Review of GhostNet:- https://sh-tsang.medium.com/review-ghostnet-more-features-from-cheap-operations-1784f3bbc2b
+
+## TODO
+1. Review and understand `GhostNetV2`.
+
+`GhostNetV2` was also proposed in <b>CVPR 2022</b>
+- https://arxiv.org/abs/2211.12905 [GhostNetV2 Paper]
+- https://github.com/likyoo/GhostNetV2-PyTorch [Implementation]
