@@ -103,3 +103,92 @@ def _make_divisible(v, divisor, min_value=None):
     
     return new_v
 
+
+# GhostNet
+class GhostNet(nn.Module):
+    def __init__(self, cfgs, num_classes=1000, width_multiplier=1., dropout=0.2):
+        super(GhostNet, self).__init__()
+        self.cfgs = cfgs # Inverted Residual Blocks
+        # building first layer
+        output_channel = _make_divisible(16 * width_multiplier, 4)
+        layers = [nn.Sequential(
+            nn.Conv2d(3, output_channel, 3, 2, 1, bias=False),
+            nn.BatchNorm2d(output_channel),
+            nn.ReLU(inplace=True)
+        )]
+        input_channel = output_channel
+
+        # First Layer
+        # Build Inverted Residual Blocks
+        for k, exp_size, c, use_se, s in self.cfgs:
+            output_channel = _make_divisible(c * width_multiplier, 4)
+            hidden_channel = _make_divisible(exp_size * width_multiplier, 4)
+            layers.append(GhostBottleneck(input_channel, hidden_channel, output_channel, k, s, use_se)) # type: ignore
+            input_channel = output_channel
+        self.features = nn.Sequential(*layers)
+
+        # last several layers
+        output_channel = _make_divisible(exp_size * width_multiplier, 4)
+        self.squeeze = nn.Sequential(
+            nn.Conv2d(input_channel, output_channel, 1, 1, 0, bias=False),
+            nn.BatchNorm2d(output_channel),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d((1, 1)),
+        )
+        input_channel = output_channel
+        output_channel = 1280
+        self.classifier = nn.Sequential(
+            nn.Linear(input_channel, output_channel, bias=False),
+            nn.BatchNorm1d(output_channel),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.2),
+            nn.Linear(output_channel, num_classes),
+        )
+        self._initialize_weights()
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.squeeze(x)
+        x = x.view(x.size(0), -1)
+        x = self.classifier(x)
+
+        return x
+    
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+
+
+def ghostnet(**kwargs):
+    """
+    GhostNet Model
+    """
+    cfgs = [
+        # k, t, c, SE, s 
+        [3,  16,  16, 0, 1],
+        [3,  48,  24, 0, 2],
+        [3,  72,  24, 0, 1],
+        [5,  72,  40, 1, 2],
+        [5, 120,  40, 1, 1],
+        [3, 240,  80, 0, 2],
+        [3, 200,  80, 0, 1],
+        [3, 184,  80, 0, 1],
+        [3, 184,  80, 0, 1],
+        [3, 480, 112, 1, 1],
+        [3, 672, 112, 1, 1],
+        [5, 672, 160, 1, 2],
+        [5, 960, 160, 0, 1],
+        [5, 960, 160, 1, 1],
+        [5, 960, 160, 0, 1],
+        [5, 960, 160, 1, 1]
+    ]
+
+    return GhostNet(cfgs, **kwargs)
+
+if __name__ == '__main__':
+    model = ghostnet()
+    print(model.parameters)
